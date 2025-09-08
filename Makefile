@@ -13,6 +13,7 @@ all: .venv
 fclean:
 	@echo -n "\033[0;32mCleaning up...\033[0m"
 	@rm -rf .venv
+	@rm -rf src/__pycache__
 	@echo "\033[0;32m\rDone!\033[K\33[0m"
 
 re: fclean all

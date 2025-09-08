@@ -14,7 +14,8 @@ class Game:
             return
         reward = self.board.move_snake(direction)
         return reward, not self.board.get_snake_is_alive()
-        # Ajouter plus tard des trigger, Green apple -> recompense, Red apple -> malus, mort -> Gros malus
+        # Ajouter plus tard des trigger, Green apple
+        # -> recompense, Red apple -> malus, mort -> Gros malus
 
     def print_board(self):
         """Display the actual board"""
@@ -56,7 +57,7 @@ class Game:
             for cell in lines:
                 line += cell
             print(line)
-    
+
     def get_snake_view(self):
         return self._generate_view()
 
@@ -67,7 +68,7 @@ class Game:
     def reset(self):
         self.board = Board()
         self.actual_direction = None
-    
+
     def get_best_length(self):
         return self.board.get_best_length()
 
