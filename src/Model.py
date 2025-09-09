@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import random
-from Direction import Direction
+from Direction import Direction, direction_map
 from Display import Display
 import time
 import tkinter as tk
@@ -32,7 +32,7 @@ class Model:
         self.sleep = 0.3 if self.visual else 0
         self.name = name
         self.n_state = 16777216
-        self.n_action = 4
+        self.n_action = 3
         self.init_error = False
         if os.path.exists(name):
             try:
@@ -50,7 +50,7 @@ class Model:
         self.epsilon = 1 if self.learning else 0
         self.min_epsilon = 0.01 if self.learning else 0
         self.epsilon_decay = 0.9995
-        self.num_episodes = 4
+        self.num_episodes = 200
         self.max_step = 200
 
     def _update_state(self, cell, direction, distance) -> tuple[int, int]:
@@ -86,9 +86,12 @@ class Model:
                     state[d[1]] = d[0]
         return state
 
-    def choose_action(self, state):
+    def choose_action(self, state, current_direction):
+        directions = list(Direction)
+        print(direction_map[current_direction][random.randint(0, 2)])
+        print(current_direction)
         if random.uniform(0, 1) < self.epsilon:
-            return random.randint(0, 3)
+            return direction_map[current_direction][random.randint(0, 2)]
         else:
             return np.argmax(self.Q_table[state, :])
 
@@ -116,12 +119,6 @@ class Model:
 
     def session(self, display):
         best_survival, best_length = 0, 0
-        directions: list[Direction] = [
-            Direction.UP,
-            Direction.DOWN,
-            Direction.LEFT,
-            Direction.RIGHT
-            ]
         self.epsilon = 1 if self.learning else 0
         for episode in range(self.num_episodes):
             if self.printing:
@@ -132,6 +129,7 @@ class Model:
             if self.game.get_best_survival() > best_survival:
                 best_survival = self.game.get_best_survival()
             self.game.reset()
+            current_direction = self.game.board.get_starting_direction()
             if self.visual:
                 display.update(self.game.board.board)
             state = self._encode_state(self.convert_state())
@@ -141,10 +139,11 @@ class Model:
                 time.sleep(self.sleep)
                 if self.printing:
                     print(f'Step {step}:\n')
-                action = self.choose_action(state)
+                action = self.choose_action(state, current_direction)
+                current_direction = action
                 if self.printing:
                     print(f'action: {action}')
-                reward, end = self.game.move_snake(directions[action])
+                reward, end = self.game.move_snake(action)
                 if self.visual:
                     display.update(self.game.board.board)
                 if self.printing:

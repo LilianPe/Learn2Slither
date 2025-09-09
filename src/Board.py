@@ -19,6 +19,7 @@ class Board:
         self.reward = 0
         self._best_length = 0
         self.best_survival = 0
+        self._starting_direction = None
         self._generate_snake()
         self._generate_green_apple()
         self._generate_green_apple()
@@ -64,10 +65,21 @@ class Board:
         self._snake_body.append(self._snake_tail)
         self.board[self._snake_tail[0]][self._snake_tail[1]] = 2
 
+    def _update_starting_direction(self):
+        if self.board[self._snake_head[0] - 1][self._snake_head[1]] == 2:
+            self._starting_direction = Direction.DOWN
+        elif self.board[self._snake_head[0] + 1][self._snake_head[1]] == 2:
+            self._starting_direction = Direction.UP
+        elif self.board[self._snake_head[0]][self._snake_head[1] - 1] == 2:
+            self._starting_direction = Direction.RIGHT
+        elif self.board[self._snake_head[0]][self._snake_head[1] + 1] == 2:
+            self._starting_direction = Direction.LEFT
+
     def _generate_snake(self) -> None:
         """Generate the snake on the board"""
         self._generate_snake_head()
         self._generate_snake_body()
+        self._update_starting_direction()
         self._generate_snake_body()
 
     def _generate_green_apple(self) -> None:
@@ -175,3 +187,6 @@ class Board:
 
     def get_best_length(self):
         return self._best_length
+
+    def get_starting_direction(self):
+        return self._starting_direction

@@ -45,6 +45,7 @@ if __name__ == "__main__":
 
 # Clean les fonctions trop longues avant de reprendre
 # Enlever la possibilite de faire le move oppose (= suicide)
+# -> Finir, ajouter des protections lors de la recherche de la premiere direction pour ne pas chercher en dehors du tableau
 # Ajouter stats de train
 # Revoir comment gerer sessions, soit valeure par defaut,
 # soit erreure
@@ -53,3 +54,6 @@ if __name__ == "__main__":
 # Ajouter un mode step by step -> Facile a integrer en
 # console, mais mieux via la fenetre tkinter pour le mode visual
 # Passer une session a 1 iteration
+# Verifier epsilon decay
+# Revoir ancien code pour fix le bug actuel, mais surement remettre le systeme d'index pour les directions et pas direct les directions
+# Surement que des int dans la Q-Table et avec la modif ca met les direcions au lieu des int
