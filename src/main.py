@@ -44,9 +44,7 @@ if __name__ == "__main__":
     main()
 
 # Clean les fonctions trop longues avant de reprendre
-# Revoir state voir si il peut etre simplifie pour le snake
-# Revoir si move oppose (= toujours mort) doit vraiment
-# etre possible ou non
+# Enlever la possibilite de faire le move oppose (= suicide)
 # Ajouter stats de train
 # Revoir comment gerer sessions, soit valeure par defaut,
 # soit erreure
@@ -54,3 +52,4 @@ if __name__ == "__main__":
 # utilise (-load / -save)
 # Ajouter un mode step by step -> Facile a integrer en
 # console, mais mieux via la fenetre tkinter pour le mode visual
+# Passer une session a 1 iteration
