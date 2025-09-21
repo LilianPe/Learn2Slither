@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import random
-from Direction import Direction, direction_map
+from Direction import Direction
 from Display import Display
 import time
 import tkinter as tk
@@ -32,7 +32,7 @@ class Model:
         self.sleep = 0.3 if self.visual else 0
         self.name = name
         self.n_state = 16777216
-        self.n_action = 3
+        self.n_action = 4
         self.init_error = False
         if os.path.exists(name):
             try:
@@ -44,14 +44,17 @@ class Model:
                 self.init_error = True
                 print(f"Can't load the file: {e}")
         else:
+            if name:
+                print("Invalid path.")
+                self.init_error = True
             self.Q_table: np.array = np.zeros((self.n_state, self.n_action))
         self.alpha = 0.2
         self.gamma = 0.9
         self.epsilon = 1 if self.learning else 0
         self.min_epsilon = 0.01 if self.learning else 0
-        self.epsilon_decay = 0.9995
-        self.num_episodes = 200
-        self.max_step = 200
+        self.num_episodes = 50
+        self.max_step = 2000
+        self.epsilon_decay = self.min_epsilon ** (1 / self.num_episodes)
 
     def _update_state(self, cell, direction, distance) -> tuple[int, int]:
         if distance <= 3:
@@ -86,14 +89,33 @@ class Model:
                     state[d[1]] = d[0]
         return state
 
+    def get_opposite(self, d: Direction):
+        match d:
+            case Direction.UP:
+                return Direction.DOWN
+            case Direction.DOWN:
+                return Direction.UP
+            case Direction.LEFT:
+                return Direction.RIGHT
+            case Direction.RIGHT:
+                return Direction.LEFT
+
     def choose_action(self, state, current_direction):
         directions = list(Direction)
-        print(direction_map[current_direction][random.randint(0, 2)])
-        print(current_direction)
         if random.uniform(0, 1) < self.epsilon:
-            return direction_map[current_direction][random.randint(0, 2)]
+            direction_ind = random.randint(0, 3)
+            direction = directions[direction_ind]
+            while(direction == self.get_opposite(current_direction)):
+                direction_ind = random.randint(0, 3)
+                direction = directions[direction_ind]
+            return direction, direction_ind
         else:
-            return np.argmax(self.Q_table[state, :])
+            direction_ind = np.argmax(self.Q_table[state, :])
+            direction = directions[direction_ind]
+            while(direction == self.get_opposite(current_direction)):
+                direction_ind = random.randint(0, 3)
+                direction = directions[direction_ind]
+            return direction, direction_ind
 
     def display_Q(self):
         print(self.Q_table)
@@ -105,6 +127,7 @@ class Model:
         return value
 
     def training(self, sessions: int):
+        display = None
         if self.visual:
             root = tk.Tk()
             display = Display(root)
@@ -113,33 +136,30 @@ class Model:
         for _ in range(sessions):
             if self.session(display):
                 break
-        display.close()
+        if self.visual:
+            display.close()
         if self.visual:
             root.mainloop()
 
     def session(self, display):
-        best_survival, best_length = 0, 0
         self.epsilon = 1 if self.learning else 0
+        best_survival, best_length = 0, 3
         for episode in range(self.num_episodes):
             if self.printing:
                 print(f'Begin episode {episode}!\n')
             time.sleep(self.sleep)
-            if self.game.get_best_length() > best_length:
-                best_length = self.game.get_best_length()
-            if self.game.get_best_survival() > best_survival:
-                best_survival = self.game.get_best_survival()
             self.game.reset()
             current_direction = self.game.board.get_starting_direction()
             if self.visual:
                 display.update(self.game.board.board)
             state = self._encode_state(self.convert_state())
             for step in range(self.max_step):
-                if display.closed:
+                if self.visual and display.closed:
                     return 1
                 time.sleep(self.sleep)
                 if self.printing:
                     print(f'Step {step}:\n')
-                action = self.choose_action(state, current_direction)
+                action, action_ind = self.choose_action(state, current_direction)
                 current_direction = action
                 if self.printing:
                     print(f'action: {action}')
@@ -148,18 +168,23 @@ class Model:
                     display.update(self.game.board.board)
                 if self.printing:
                     print(self.game.print_snake_view())
-                old_value = self.Q_table[state, action]
+                old_value = self.Q_table[state, action_ind]
                 if end:
-                    target = reward + self.gamma
+                    target = reward
                     new = (1 - self.alpha) * old_value + self.alpha * target
-                    self.Q_table[state, action] = new
+                    self.Q_table[state, action_ind] = new
                     break
                 next_state = self._encode_state(self.convert_state())
                 next_max = np.max(self.Q_table[next_state, :])
                 target = reward + self.gamma * next_max
                 new_value = (1 - self.alpha) * old_value + self.alpha * target
-                self.Q_table[state, action] = new_value
+                self.Q_table[state, action_ind] = new_value
                 state = next_state
+            if self.game.get_best_length() > best_length:
+                best_length = self.game.get_best_length()
+            if self.game.get_best_survival() > best_survival:
+                best_survival = self.game.get_best_survival()
+
 
             self.epsilon = max(
                 self.min_epsilon,

@@ -35,8 +35,9 @@ def main():
     sessions = args.sessions
     game = Game()
     model = Model(game, "model/first_model.npy", args)
-    if args.noprint:
-        print(f"Session {sessions}:")
+    if model.init_error:
+        # exit(1)
+        pass
     model.training(sessions)
 
 

@@ -17,7 +17,7 @@ class Board:
         self._snake_body: list[tuple[int, int]] = []
         self._snake_is_alive = True
         self.reward = 0
-        self._best_length = 0
+        self._best_length = 3
         self.best_survival = 0
         self._starting_direction = None
         self._generate_snake()
@@ -66,13 +66,13 @@ class Board:
         self.board[self._snake_tail[0]][self._snake_tail[1]] = 2
 
     def _update_starting_direction(self):
-        if self.board[self._snake_head[0] - 1][self._snake_head[1]] == 2:
+        if self._snake_head[0] - 1 >= 0 and self._snake_head[0] - 1 <= 9 and self.board[self._snake_head[0] - 1][self._snake_head[1]] == 2:
             self._starting_direction = Direction.DOWN
-        elif self.board[self._snake_head[0] + 1][self._snake_head[1]] == 2:
+        elif self._snake_head[0] + 1 >= 0 and self._snake_head[0] + 1 <= 9 and self.board[self._snake_head[0] + 1][self._snake_head[1]] == 2:
             self._starting_direction = Direction.UP
-        elif self.board[self._snake_head[0]][self._snake_head[1] - 1] == 2:
+        elif self._snake_head[1] - 1 >= 0 and self._snake_head[1] - 1 <= 9 and self.board[self._snake_head[0]][self._snake_head[1] - 1] == 2:
             self._starting_direction = Direction.RIGHT
-        elif self.board[self._snake_head[0]][self._snake_head[1] + 1] == 2:
+        elif self._snake_head[1] + 1 >= 0 and self._snake_head[1] + 1 <= 9 and self.board[self._snake_head[0]][self._snake_head[1] + 1] == 2:
             self._starting_direction = Direction.LEFT
 
     def _generate_snake(self) -> None:
@@ -106,7 +106,7 @@ class Board:
                 cell = self._snake_body.pop()
                 self.board[cell[0]][cell[1]] = 0
                 self._snake_tail = self._snake_body[-1]
-                self.reward = -0.1
+                self.reward = -2.5
             case 3:
                 self._generate_green_apple()
                 self.reward = 40
