@@ -1,8 +1,9 @@
 import tkinter as tk
+import time
 
 
 class Display:
-    def __init__(self, root):
+    def __init__(self, root, step_by_step):
         self.root = root
         self.root.title("Learn2Slither")
         self.closed = False
@@ -12,6 +13,12 @@ class Display:
             height=400,
             bg="black"
         )
+        if step_by_step:
+            root.bind("<Right>", self._on_next_step)
+            root.bind("<space>", self._on_next_step)
+        self.pressed = False
+        self.step_by_step = step_by_step
+        self.root.protocol("WM_DELETE_WINDOW", self.close)
         self.cells = []
         self.board = [[0 for _ in range(0, 10)] for _ in range(0, 10)]
         self.init_display()
@@ -33,6 +40,9 @@ class Display:
             self.cells.append(row)
         self.root.update_idletasks()
         self.root.update()
+    
+    def _on_next_step(self, event):
+        self.pressed = True
 
     def display_board(self):
         if self.closed:
@@ -60,6 +70,7 @@ class Display:
 
     def close(self):
         if not self.closed:
+            self.pressed = True
             self.root.destroy()
 
     def check_window(self):
@@ -68,3 +79,16 @@ class Display:
         except tk.TclError:
             self.closed = True
             return False
+
+    def next_step(self, time_to_sleep):
+        self.check_window()
+        if self.closed:
+            return
+        if not self.step_by_step:
+            time.sleep(time_to_sleep)
+            return
+        while not self.pressed:
+            self.root.update_idletasks()
+            self.root.update()
+            time.sleep(0.05)
+        self.pressed = False

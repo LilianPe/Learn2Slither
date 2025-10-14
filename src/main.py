@@ -10,7 +10,20 @@ def get_args():
         "-visual",
         choices=["on", "off"],
         default="off",
-        help="enable or disable visual mode")
+        help="enable or disable visual mode"
+        )
+    parser.add_argument(
+        "-step-by-step",
+        action="store_true",
+        help="Enable step-by-step mode"
+        )
+    parser.add_argument(
+        "-speed",
+        type=int,
+        choices=[1, 2, 3, 4, 5, 6],
+        default=1,
+        help="Vitesse du jeu : 1 = lent, 2 = moyen, 3 = rapide"
+    )
     parser.add_argument(
         "-dontlearn",
         action="store_false",
@@ -45,16 +58,9 @@ if __name__ == "__main__":
     main()
 
 # Clean les fonctions trop longues avant de reprendre
-# Enlever la possibilite de faire le move oppose (= suicide)
-# -> Finir, ajouter des protections lors de la recherche de la premiere direction pour ne pas chercher en dehors du tableau
-# Ajouter stats de train
-# Revoir comment gerer sessions, soit valeure par defaut,
-# soit erreure
 # Separer le load et le save du modele, le faire si flag
 # utilise (-load / -save)
-# Ajouter un mode step by step -> Facile a integrer en
-# console, mais mieux via la fenetre tkinter pour le mode visual
+# Ajouter un mode step by step
+# Ajouter un parametre pour gerer la vitesse d'update 
 # Passer une session a 1 iteration
 # Verifier epsilon decay
-# Revoir ancien code pour fix le bug actuel, mais surement remettre le systeme d'index pour les directions et pas direct les directions
-# Surement que des int dans la Q-Table et avec la modif ca met les direcions au lieu des int

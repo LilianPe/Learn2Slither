@@ -5,6 +5,9 @@ from Direction import Direction
 from Display import Display
 import time
 import tkinter as tk
+# import torch
+# import torch.nn as nn
+# import torch.nn.functional as F
 
 
 class Model:
@@ -29,7 +32,8 @@ class Model:
         self.learning = args.dontlearn
         self.visual = args.visual == "on"
         self.printing = args.noprint
-        self.sleep = 0.3 if self.visual else 0
+        self.step_by_step = args.step_by_step
+        self.sleep = 0.3 / args.speed if self.visual else 0
         self.name = name
         self.n_state = 16777216
         self.n_action = 4
@@ -52,7 +56,7 @@ class Model:
         self.gamma = 0.9
         self.epsilon = 1 if self.learning else 0
         self.min_epsilon = 0.01 if self.learning else 0
-        self.num_episodes = 50
+        self.num_episodes = 1000
         self.max_step = 2000
         self.epsilon_decay = self.min_epsilon ** (1 / self.num_episodes)
 
@@ -130,7 +134,7 @@ class Model:
         display = None
         if self.visual:
             root = tk.Tk()
-            display = Display(root)
+            display = Display(root, self.step_by_step)
         else:
             root = None
         for _ in range(sessions):
@@ -147,122 +151,60 @@ class Model:
         for episode in range(self.num_episodes):
             if self.printing:
                 print(f'Begin episode {episode}!\n')
-            time.sleep(self.sleep)
+            if display:
+                display.next_step(self.sleep)
+            else:
+                time.sleep(self.sleep)
             self.game.reset()
             current_direction = self.game.board.get_starting_direction()
             if self.visual:
                 display.update(self.game.board.board)
-            state = self._encode_state(self.convert_state())
+            state = self._encode_state(self.convert_state()) # State simplifie pour Q-Learning 
             for step in range(self.max_step):
                 if self.visual and display.closed:
                     return 1
-                time.sleep(self.sleep)
+                if display:
+                    display.next_step(self.sleep)
+                else:
+                    time.sleep(self.sleep)
                 if self.printing:
                     print(f'Step {step}:\n')
-                action, action_ind = self.choose_action(state, current_direction)
+                action, action_ind = self.choose_action(state, current_direction) # Choisis action par rapport a la Q-table
                 current_direction = action
                 if self.printing:
                     print(f'action: {action}')
-                reward, end = self.game.move_snake(action)
+                reward, end = self.game.move_snake(action) # Renvoie la reward de l'action et l'effectue
                 if self.visual:
                     display.update(self.game.board.board)
                 if self.printing:
                     print(self.game.print_snake_view())
-                old_value = self.Q_table[state, action_ind]
+                old_value = self.Q_table[state, action_ind] #------------------------------------------------
                 if end:
                     target = reward
-                    new = (1 - self.alpha) * old_value + self.alpha * target
+                    new = (1 - self.alpha) * old_value + self.alpha * target # ---------------Mise a jour de la Qtable si fin
                     self.Q_table[state, action_ind] = new
                     break
                 next_state = self._encode_state(self.convert_state())
-                next_max = np.max(self.Q_table[next_state, :])
+                next_max = np.max(self.Q_table[next_state, :]) # --------------------------Mise a jour sinon
                 target = reward + self.gamma * next_max
                 new_value = (1 - self.alpha) * old_value + self.alpha * target
-                self.Q_table[state, action_ind] = new_value
+                self.Q_table[state, action_ind] = new_value # ------------------------------------------------------
                 state = next_state
             if self.game.get_best_length() > best_length:
                 best_length = self.game.get_best_length()
             if self.game.get_best_survival() > best_survival:
                 best_survival = self.game.get_best_survival()
-
-
             self.epsilon = max(
                 self.min_epsilon,
                 self.epsilon * self.epsilon_decay
                 )
 
         print(f"Best length: {best_length}\nBest survival: {best_survival}")
-        time.sleep(0.2)
-        os.makedirs("model", exist_ok=True)
-        np.save(self.name, self.Q_table)
+        if display:
+            display.next_step(self.sleep)
+        else:
+            time.sleep(self.sleep)
+        if self.learning:
+            os.makedirs("model", exist_ok=True)
+            np.save(self.name, self.Q_table)
         return 0
-
-    # def update_stats(self, best_survival, best_length, best_ep_length, best_ep_survival) :
-    #     s = best_survival if best_survival > best_ep_survival else best_ep_survival
-    #     l = best_length if best_length > best_ep_length else best_ep_length
-    #     return s, l 
-
-    # def session(self, display):
-    #     directions: list[Direction] = [
-    #         Direction.UP,
-    #         Direction.DOWN,
-    #         Direction.LEFT,
-    #         Direction.RIGHT
-    #         ]
-    #     self.epsilon = 1 if self.learning else 0
-    #     best_survival, best_length = 0, 0
-    #     for e in range(self.num_episodes):
-    #         best_ep_survival, best_ep_length = self.episode(e, display, directions)
-    #         best_survival, best_length = self.update_stats(best_survival, best_length, best_ep_length, best_ep_survival)
-    #     print(f"Best length: {best_length}\nBest survival: {best_survival}")
-    #     time.sleep(0.2)
-    #     os.makedirs("model", exist_ok=True)
-    #     np.save(self.name, self.Q_table)
-    #     return 0
-
-    # def episode(self, episode, display, directions):
-    #     best_survival, best_length = 0, 0
-    #     if self.printing:
-    #         print(f'Begin episode {episode}!\n')
-    #     time.sleep(self.sleep)
-    #     self.game.reset()
-    #     if self.visual:
-    #         display.update(self.game.board.board)
-    #     state = self._encode_state(self.convert_state())
-    #     for step in range(self.max_step):
-    #         if display.closed:
-    #             return 1
-    #         time.sleep(self.sleep)
-    #         if self.printing:
-    #             print(f'Step {step}:\n')
-    #         action = self.choose_action(state)
-    #         if self.printing:
-    #             print(f'action: {action}')
-    #         reward, end = self.game.move_snake(directions[action])
-    #         if self.visual:
-    #             display.update(self.game.board.board)
-    #         if self.printing:
-    #             print(self.game.print_snake_view())
-    #         old_value = self.Q_table[state, action]
-    #         if end:
-    #             target = reward + self.gamma
-    #             new = (1 - self.alpha) * old_value + self.alpha * target
-    #             self.Q_table[state, action] = new
-    #             break
-    #         next_state = self._encode_state(self.convert_state())
-    #         next_max = np.max(self.Q_table[next_state, :])
-    #         target = reward + self.gamma * next_max
-    #         new_value = (1 - self.alpha) * old_value + self.alpha * target
-    #         self.Q_table[state, action] = new_value
-    #         state = next_state
-
-    #     if self.game.get_best_length() > best_length:
-    #         best_length = self.game.get_best_length()
-    #     if self.game.get_best_survival() > best_survival:
-    #         best_survival = self.game.get_best_survival()
-    #     self.epsilon = max(
-    #         self.min_epsilon,
-    #         self.epsilon * self.epsilon_decay
-    #         )
-        
-    #     return best_survival, best_length
