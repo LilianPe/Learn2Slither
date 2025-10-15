@@ -5,28 +5,56 @@ from Direction import Direction
 from Display import Display
 import time
 import tkinter as tk
-# import torch
-# import torch.nn as nn
-# import torch.nn.functional as F
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import random
+import torch.optim as optim
 
+class Mlp(nn.Module):
+    # States -> array avec un etat entre 0 et 3 pour
+    # chaque case visible serait trop grande
+    # On fait donc ce genre de table:
+    # state = (
+    #     block_up,    green_apple_up,    red_apple_up,
+    #     block_down,  green_apple_down,  red_apple_down,
+    #     block_left,  green_apple_left,  red_apple_left,
+    #     block_right, green_apple_right, red_apple_right
+    # )
+    # Avec un etat entre 0 et 3
+    # 0 = rien
+    # 1 = proche (1–3 cases)
+    # 2 = moyen (4–6 cases)
+    # 3 = loin (7+ cases)
+
+
+    # Input layer recoit stats: 12 inputs
+    # n HiddenLayers
+    # Output: 4 directions
+
+    def __init__(self, in_features=12, h1=8, h2=8, out_features=4):
+        super().__init__()
+        self.fc1 = nn.Linear(in_features, h1)
+        self.fc2 = nn.Linear(h1, h2)
+        self.out = nn.Linear(h2, out_features)
+    
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.out(x)
+        return(x)
 
 class Model:
     def __init__(self, game, name, args):
-        # States -> Q-table avec un etat entre 0 et 3 pour
-        # chaque case visible serait trop grande
-        # On fait donc ce genre de table:
-        # state = (
-        #     block_up,    green_apple_up,    red_apple_up,
-        #     block_down,  green_apple_down,  red_apple_down,
-        #     block_left,  green_apple_left,  red_apple_left,
-        #     block_right, green_apple_right, red_apple_right
-        # )
-        # Avec un etat entre 0 et 3
-        # 0 = rien
-        # 1 = proche (1–3 cases)
-        # 2 = moyen (4–6 cases)
-        # 3 = loin (7+ cases)
-        # On a donc 4**12 = 16 777 216 etats
+        mlp = Mlp()
+        optimizer = optim.Adam(mlp.parameters(), lr=0.001)
+        criterion = nn.MSELoss()
+        
+        gamma = 0.9
+        self.epsilon = 1 if self.learning else 0
+        self.min_epsilon = 0.01 if self.learning else 0
+        self.epsilon_decay = self.min_epsilon ** (1 / self.num_episodes)
+        memory = []
 
         self.game = game
         self.learning = args.dontlearn
@@ -54,11 +82,8 @@ class Model:
             self.Q_table: np.array = np.zeros((self.n_state, self.n_action))
         self.alpha = 0.2
         self.gamma = 0.9
-        self.epsilon = 1 if self.learning else 0
-        self.min_epsilon = 0.01 if self.learning else 0
         self.num_episodes = 1000
         self.max_step = 2000
-        self.epsilon_decay = self.min_epsilon ** (1 / self.num_episodes)
 
     def _update_state(self, cell, direction, distance) -> tuple[int, int]:
         if distance <= 3:
@@ -114,11 +139,15 @@ class Model:
                 direction = directions[direction_ind]
             return direction, direction_ind
         else:
-            direction_ind = np.argmax(self.Q_table[state, :])
+            with torch.no_grad():
+                q_values = self.mlp(torch.tensor(state, dtype=torch.float32))
+                valid_indices = [i for i in range(4) if directions[i] != self.get_opposite(current_direction)]
+                best_in_subset = torch.argmax(q_values[valid_indices]).item()
+                direction_ind = valid_indices[best_in_subset]
             direction = directions[direction_ind]
-            while(direction == self.get_opposite(current_direction)):
-                direction_ind = random.randint(0, 3)
-                direction = directions[direction_ind]
+            # while(direction == self.get_opposite(current_direction)):
+            #     direction_ind = random.randint(0, 3)
+            #     direction = directions[direction_ind]
             return direction, direction_ind
 
     def display_Q(self):
