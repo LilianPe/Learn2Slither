@@ -46,32 +46,30 @@ class Mlp(nn.Module):
 
 class Model:
     def __init__(self, game, name, args):
-        mlp = Mlp()
-        optimizer = optim.Adam(mlp.parameters(), lr=0.001)
-        criterion = nn.MSELoss()
+        self.mlp = Mlp()
+        self.optimizer = optim.Adam(self.mlp.parameters(), lr=0.001)
+        self.criterion = nn.MSELoss()
         
-        gamma = 0.9
-        self.epsilon = 1 if self.learning else 0
-        self.min_epsilon = 0.01 if self.learning else 0
-        self.epsilon_decay = self.min_epsilon ** (1 / self.num_episodes)
-        memory = []
-
         self.game = game
-        self.learning = args.dontlearn
         self.visual = args.visual == "on"
+        self.learning = args.dontlearn
         self.printing = args.noprint
         self.step_by_step = args.step_by_step
         self.sleep = 0.3 / args.speed if self.visual else 0
+        
+        self.num_episodes = 1
+        self.max_step = 2000
+        self.gamma = 0.4
+        self.epsilon = 1 if self.learning else 0
+        self.min_epsilon = 0.01 if self.learning else 0
+        self.epsilon_decay = 0.95
+        self.memory = []
+
         self.name = name
-        self.n_state = 16777216
-        self.n_action = 4
         self.init_error = False
         if os.path.exists(name):
             try:
-                self.Q_table = np.load(name)
-                if len(self.Q_table) != self.n_state:
-                    print("Invalid Q_Table.")
-                    self.init_error = True
+                self.mlp.load_state_dict(torch.load(name))
             except Exception as e:
                 self.init_error = True
                 print(f"Can't load the file: {e}")
@@ -79,25 +77,32 @@ class Model:
             if name:
                 print("Invalid path.")
                 self.init_error = True
-            self.Q_table: np.array = np.zeros((self.n_state, self.n_action))
-        self.alpha = 0.2
-        self.gamma = 0.9
-        self.num_episodes = 1000
-        self.max_step = 2000
 
     def _update_state(self, cell, direction, distance) -> tuple[int, int]:
-        if distance <= 3:
-            distance = 1
-        elif distance <= 6:
-            distance = 2
-        else:
-            distance = 3
+        # if distance <= 3:
+        #     distance = 1
+        # elif distance <= 6:
+        #     distance = 2
+        # else:
+        #     distance = 3
         direction *= 3
         match cell:
             case 'G':
                 direction += 1
+                distance = 1
             case 'R':
                 direction += 2
+                distance = 1
+            case 'W':
+                if distance != 1:
+                    distance = 0
+                else: 
+                    distance = 1
+            case 'S':
+                if distance != 1:
+                    distance = 0
+                else: 
+                    distance = 1
         return (distance, direction)
 
     def convert_state(self) -> list[int]:
@@ -115,7 +120,8 @@ class Model:
                 cell = board[y][x]
                 if cell != '0':
                     d: tuple[int, int] = self._update_state(cell, d, i)
-                    state[d[1]] = d[0]
+                    if state[d[1]] == 0:
+                        state[d[1]] = d[0]
         return state
 
     def get_opposite(self, d: Direction):
@@ -178,6 +184,7 @@ class Model:
         self.epsilon = 1 if self.learning else 0
         best_survival, best_length = 0, 3
         for episode in range(self.num_episodes):
+            # print(f"Epsilon: {self.epsilon}")
             if self.printing:
                 print(f'Begin episode {episode}!\n')
             if display:
@@ -188,7 +195,7 @@ class Model:
             current_direction = self.game.board.get_starting_direction()
             if self.visual:
                 display.update(self.game.board.board)
-            state = self._encode_state(self.convert_state()) # State simplifie pour Q-Learning 
+            state = self.convert_state() # State simplifie pour Q-Learning 
             for step in range(self.max_step):
                 if self.visual and display.closed:
                     return 1
@@ -203,22 +210,18 @@ class Model:
                 if self.printing:
                     print(f'action: {action}')
                 reward, end = self.game.move_snake(action) # Renvoie la reward de l'action et l'effectue
+                next_state = self.convert_state()
                 if self.visual:
                     display.update(self.game.board.board)
                 if self.printing:
                     print(self.game.print_snake_view())
-                old_value = self.Q_table[state, action_ind] #------------------------------------------------
-                if end:
-                    target = reward
-                    new = (1 - self.alpha) * old_value + self.alpha * target # ---------------Mise a jour de la Qtable si fin
-                    self.Q_table[state, action_ind] = new
+                self.memory.append((state, action, reward, next_state, end))
+                if (end):
                     break
-                next_state = self._encode_state(self.convert_state())
-                next_max = np.max(self.Q_table[next_state, :]) # --------------------------Mise a jour sinon
-                target = reward + self.gamma * next_max
-                new_value = (1 - self.alpha) * old_value + self.alpha * target
-                self.Q_table[state, action_ind] = new_value # ------------------------------------------------------
                 state = next_state
+                if len(self.memory) > 64:
+                    batch = random.sample(self.memory, 64)
+                    self.train_batch(batch)
             if self.game.get_best_length() > best_length:
                 best_length = self.game.get_best_length()
             if self.game.get_best_survival() > best_survival:
@@ -235,5 +238,30 @@ class Model:
             time.sleep(self.sleep)
         if self.learning:
             os.makedirs("model", exist_ok=True)
-            np.save(self.name, self.Q_table)
+            torch.save(self.mlp.state_dict(), self.name)
         return 0
+    
+    def train_batch(self, batch):
+        states, actions, rewards, next_states, ends = zip(*batch)
+
+        states = torch.tensor(states, dtype=torch.float32)
+        next_states = torch.tensor(next_states, dtype=torch.float32)
+        rewards = torch.tensor(rewards, dtype=torch.float32)
+        ends = torch.tensor(ends, dtype=torch.bool)
+
+        q_values = self.mlp(states)
+
+        with torch.no_grad():
+            next_q_values = self.mlp(next_states).max(1)[0]
+            target = rewards + self.gamma * next_q_values * (~ends)
+        
+        directions = list(Direction)
+        action_indices = torch.tensor([directions.index(a) for a in actions])
+
+        q_value = q_values.gather(1, action_indices.unsqueeze(1)).squeeze(1)
+
+        loss = self.criterion(q_value, target)
+
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()

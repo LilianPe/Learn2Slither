@@ -47,7 +47,7 @@ def main():
     args = get_args()
     sessions = args.sessions
     game = Game()
-    model = Model(game, "model/first_model.npy", args)
+    model = Model(game, "model/first_model.pth", args)
     if model.init_error:
         # exit(1)
         pass
