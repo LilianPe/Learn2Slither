@@ -40,7 +40,7 @@ class Display:
             self.cells.append(row)
         self.root.update_idletasks()
         self.root.update()
-    
+
     def _on_next_step(self, event):
         self.pressed = True
 

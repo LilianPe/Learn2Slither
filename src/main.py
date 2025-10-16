@@ -13,6 +13,7 @@ def path_is_valid(path: str) -> bool:
             return False
     return True
 
+
 def get_args():
     parser = argparse.ArgumentParser(description="Learn2Slither")
     parser.add_argument(
@@ -59,6 +60,7 @@ def get_args():
         )
     return parser.parse_args()
 
+
 def main():
     args = get_args()
     sessions = args.sessions
@@ -74,11 +76,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# Clean les fonctions trop longues avant de reprendre
-# Separer le load et le save du modele, le faire si flag
-# utilise (-load / -save)
-# Ajouter un mode step by step
-# Ajouter un parametre pour gerer la vitesse d'update 
-# Passer une session a 1 iteration
-# Verifier epsilon decay

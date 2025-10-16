@@ -1,5 +1,4 @@
 import os
-import numpy as np
 import random
 from Direction import Direction
 from Display import Display
@@ -8,8 +7,8 @@ import tkinter as tk
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import random
 import torch.optim as optim
+
 
 class Mlp(nn.Module):
     # Input layer recoit stats: 12 inputs
@@ -21,19 +20,20 @@ class Mlp(nn.Module):
         self.fc1 = nn.Linear(in_features, h1)
         self.fc2 = nn.Linear(h1, h2)
         self.out = nn.Linear(h2, out_features)
-    
+
     def forward(self, x):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.out(x)
-        return(x)
+        return x
+
 
 class Model:
     def __init__(self, game, args):
         self.mlp = Mlp()
         self.optimizer = optim.Adam(self.mlp.parameters(), lr=0.001)
         self.criterion = nn.MSELoss()
-        
+
         self.game = game
         self.visual = args.visual == "on"
         self.learning = args.dontlearn
@@ -42,7 +42,7 @@ class Model:
         self.save_path = args.save
         self.step_by_step = args.step_by_step
         self.sleep = 0.3 / args.speed if self.visual else 0
-        
+
         self.num_episodes = 200
         self.max_step = 2000
         self.gamma = 0.4
@@ -75,12 +75,12 @@ class Model:
             case 'W':
                 if distance != 1:
                     distance = 0
-                else: 
+                else:
                     distance = 1
             case 'S':
                 if distance != 1:
                     distance = 0
-                else: 
+                else:
                     distance = 1
         return (distance, direction)
 
@@ -119,21 +119,21 @@ class Model:
         if random.uniform(0, 1) < self.epsilon:
             direction_ind = random.randint(0, 3)
             direction = directions[direction_ind]
-            while(direction == self.get_opposite(current_direction)):
+            while (direction == self.get_opposite(current_direction)):
                 direction_ind = random.randint(0, 3)
                 direction = directions[direction_ind]
             return direction, direction_ind
         else:
             with torch.no_grad():
                 q_values = self.mlp(torch.tensor(state, dtype=torch.float32))
-                valid_indices = [i for i in range(4) if directions[i] != self.get_opposite(current_direction)]
+                valid_indices = [
+                    i for i in range(4)
+                    if directions[i] != self.get_opposite(current_direction)
+                    ]
                 best_in_subset = torch.argmax(q_values[valid_indices]).item()
                 direction_ind = valid_indices[best_in_subset]
             direction = directions[direction_ind]
-            # while(direction == self.get_opposite(current_direction)):
-            #     direction_ind = random.randint(0, 3)
-            #     direction = directions[direction_ind]
-            return direction, direction_ind
+            return direction
 
     def display_Q(self):
         print(self.Q_table)
@@ -174,7 +174,7 @@ class Model:
             current_direction = self.game.board.get_starting_direction()
             if self.visual:
                 display.update(self.game.board.board)
-            state = self.convert_state() # State simplifie pour Q-Learning 
+            state = self.convert_state()
             for step in range(self.max_step):
                 if self.visual and display.closed:
                     return 1
@@ -184,18 +184,24 @@ class Model:
                     time.sleep(self.sleep)
                 if self.printing:
                     print(f'Step {step}:\n')
-                action, action_ind = self.choose_action(state, current_direction) # Choisis action par rapport a la Q-table
+                action = self.choose_action(state, current_direction)
                 current_direction = action
                 if self.printing:
                     print(f'action: {action}')
-                reward, end = self.game.move_snake(action) # Renvoie la reward de l'action et l'effectue
+                reward, end = self.game.move_snake(action)
                 next_state = self.convert_state()
                 if self.visual:
                     display.update(self.game.board.board)
                 if self.printing:
                     print(self.game.print_snake_view())
                 if self.learning:
-                    self.memory.append((state, action, reward, next_state, end))
+                    self.memory.append((
+                        state,
+                        action,
+                        reward,
+                        next_state,
+                        end
+                        ))
                 if (end):
                     break
                 state = next_state
@@ -224,7 +230,8 @@ class Model:
                 print(f"Error: Can't save the file at {self.save_path}: {e}")
                 try:
                     timestamp = time.strftime("%Y%m%d_%H%M%S")
-                    backup = f"{os.path.splitext(self.save_path)[0]}_backup_{timestamp}.pth"
+                    name = os.path.splitext(self.save_path)[0]
+                    backup = f"{name}_backup_{timestamp}.pth"
                     print(f"Trying to make a backup at {backup}")
                     os.makedirs("model", exist_ok=True)
                     torch.save(self.mlp.state_dict(), self.save_path)
@@ -247,7 +254,7 @@ class Model:
         with torch.no_grad():
             next_q_values = self.mlp(next_states).max(1)[0]
             target = rewards + self.gamma * next_q_values * (~ends)
-        
+
         directions = list(Direction)
         action_indices = torch.tensor([directions.index(a) for a in actions])
 

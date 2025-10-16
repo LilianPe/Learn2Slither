@@ -66,13 +66,21 @@ class Board:
         self.board[self._snake_tail[0]][self._snake_tail[1]] = 2
 
     def _update_starting_direction(self):
-        if self._snake_head[0] - 1 >= 0 and self._snake_head[0] - 1 <= 9 and self.board[self._snake_head[0] - 1][self._snake_head[1]] == 2:
+        if (self._snake_head[0] - 1 >= 0 and
+                self._snake_head[0] - 1 <= 9 and
+                self.board[self._snake_head[0] - 1][self._snake_head[1]] == 2):
             self._starting_direction = Direction.DOWN
-        elif self._snake_head[0] + 1 >= 0 and self._snake_head[0] + 1 <= 9 and self.board[self._snake_head[0] + 1][self._snake_head[1]] == 2:
+        elif (self._snake_head[0] + 1 >= 0 and
+                self._snake_head[0] + 1 <= 9 and
+                self.board[self._snake_head[0] + 1][self._snake_head[1]] == 2):
             self._starting_direction = Direction.UP
-        elif self._snake_head[1] - 1 >= 0 and self._snake_head[1] - 1 <= 9 and self.board[self._snake_head[0]][self._snake_head[1] - 1] == 2:
+        elif (self._snake_head[1] - 1 >= 0 and
+                self._snake_head[1] - 1 <= 9 and
+                self.board[self._snake_head[0]][self._snake_head[1] - 1] == 2):
             self._starting_direction = Direction.RIGHT
-        elif self._snake_head[1] + 1 >= 0 and self._snake_head[1] + 1 <= 9 and self.board[self._snake_head[0]][self._snake_head[1] + 1] == 2:
+        elif (self._snake_head[1] + 1 >= 0 and
+                self._snake_head[1] + 1 <= 9 and
+                self.board[self._snake_head[0]][self._snake_head[1] + 1] == 2):
             self._starting_direction = Direction.LEFT
 
     def _generate_snake(self) -> None:
