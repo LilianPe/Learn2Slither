@@ -12,27 +12,11 @@ import random
 import torch.optim as optim
 
 class Mlp(nn.Module):
-    # States -> array avec un etat entre 0 et 3 pour
-    # chaque case visible serait trop grande
-    # On fait donc ce genre de table:
-    # state = (
-    #     block_up,    green_apple_up,    red_apple_up,
-    #     block_down,  green_apple_down,  red_apple_down,
-    #     block_left,  green_apple_left,  red_apple_left,
-    #     block_right, green_apple_right, red_apple_right
-    # )
-    # Avec un etat entre 0 et 3
-    # 0 = rien
-    # 1 = proche (1–3 cases)
-    # 2 = moyen (4–6 cases)
-    # 3 = loin (7+ cases)
-
-
     # Input layer recoit stats: 12 inputs
     # n HiddenLayers
     # Output: 4 directions
 
-    def __init__(self, in_features=12, h1=8, h2=8, out_features=4):
+    def __init__(self, in_features=12, h1=64, h2=64, out_features=4):
         super().__init__()
         self.fc1 = nn.Linear(in_features, h1)
         self.fc2 = nn.Linear(h1, h2)
@@ -45,7 +29,7 @@ class Mlp(nn.Module):
         return(x)
 
 class Model:
-    def __init__(self, game, name, args):
+    def __init__(self, game, args):
         self.mlp = Mlp()
         self.optimizer = optim.Adam(self.mlp.parameters(), lr=0.001)
         self.criterion = nn.MSELoss()
@@ -54,10 +38,12 @@ class Model:
         self.visual = args.visual == "on"
         self.learning = args.dontlearn
         self.printing = args.noprint
+        self.load_path = args.load
+        self.save_path = args.save
         self.step_by_step = args.step_by_step
         self.sleep = 0.3 / args.speed if self.visual else 0
         
-        self.num_episodes = 1
+        self.num_episodes = 200
         self.max_step = 2000
         self.gamma = 0.4
         self.epsilon = 1 if self.learning else 0
@@ -65,26 +51,19 @@ class Model:
         self.epsilon_decay = 0.95
         self.memory = []
 
-        self.name = name
         self.init_error = False
-        if os.path.exists(name):
+        if self.load_path and os.path.exists(self.load_path):
             try:
-                self.mlp.load_state_dict(torch.load(name))
+                self.mlp.load_state_dict(torch.load(self.load_path))
             except Exception as e:
                 self.init_error = True
-                print(f"Can't load the file: {e}")
+                print(f"Error: Can't load the file: {e}")
         else:
-            if name:
-                print("Invalid path.")
+            if self.load_path:
                 self.init_error = True
+                print(f"Error: Path does not exist: {self.load_path}")
 
     def _update_state(self, cell, direction, distance) -> tuple[int, int]:
-        # if distance <= 3:
-        #     distance = 1
-        # elif distance <= 6:
-        #     distance = 2
-        # else:
-        #     distance = 3
         direction *= 3
         match cell:
             case 'G':
@@ -215,7 +194,8 @@ class Model:
                     display.update(self.game.board.board)
                 if self.printing:
                     print(self.game.print_snake_view())
-                self.memory.append((state, action, reward, next_state, end))
+                if self.learning:
+                    self.memory.append((state, action, reward, next_state, end))
                 if (end):
                     break
                 state = next_state
@@ -236,11 +216,24 @@ class Model:
             display.next_step(self.sleep)
         else:
             time.sleep(self.sleep)
-        if self.learning:
-            os.makedirs("model", exist_ok=True)
-            torch.save(self.mlp.state_dict(), self.name)
+        if self.save_path:
+            try:
+                os.makedirs("model", exist_ok=True)
+                torch.save(self.mlp.state_dict(), self.save_path)
+            except Exception as e:
+                print(f"Error: Can't save the file at {self.save_path}: {e}")
+                try:
+                    timestamp = time.strftime("%Y%m%d_%H%M%S")
+                    backup = f"{os.path.splitext(self.save_path)[0]}_backup_{timestamp}.pth"
+                    print(f"Trying to make a backup at {backup}")
+                    os.makedirs("model", exist_ok=True)
+                    torch.save(self.mlp.state_dict(), self.save_path)
+                    print(f"Sucess! File saved at {backup}")
+                except Exception as e:
+                    print(f"Error: Can't make a backup: {e}")
+                    exit(1)
         return 0
-    
+
     def train_batch(self, batch):
         states, actions, rewards, next_states, ends = zip(*batch)
 
