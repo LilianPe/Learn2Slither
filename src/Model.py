@@ -210,9 +210,30 @@ class Model:
                 print(f"Error: Can't make a backup: {e}")
                 exit(1)
 
+    def step(self, display, state, current_direction):
+        action = self.choose_action(state, current_direction)
+        current_direction = action
+        if self.printing:
+            print(f'action: {action}')
+        reward, end = self.game.move_snake(action)
+        next_state = self.convert_state()
+        if self.visual:
+            display.update(self.game.board.board)
+        if self.printing:
+            print(self.game.print_snake_view())
+        if self.learning:
+            self.memory.append((
+                state,
+                action,
+                reward,
+                next_state,
+                end
+                ))
+        return next_state, end
+
     def session(self, display):
         self.epsilon = 1 if self.learning else 0
-        best_survival, best_length = 0, 3
+        best_surv, best_len = 0, 3
         for episode in range(self.num_episodes):
             current_direction, state = self.start_episode(display, episode)
             for step in range(self.max_step):
@@ -220,33 +241,16 @@ class Model:
                     return 1
                 if self.printing:
                     print(f'Step {step}:\n')
-                action = self.choose_action(state, current_direction)
-                current_direction = action
-                if self.printing:
-                    print(f'action: {action}')
-                reward, end = self.game.move_snake(action)
-                next_state = self.convert_state()
-                if self.visual:
-                    display.update(self.game.board.board)
-                if self.printing:
-                    print(self.game.print_snake_view())
-                if self.learning:
-                    self.memory.append((
-                        state,
-                        action,
-                        reward,
-                        next_state,
-                        end
-                        ))
+                next_state, end = self.step(display, state, current_direction)
                 if (end):
                     break
                 state = next_state
                 if len(self.memory) > 64:
                     batch = random.sample(self.memory, 64)
                     self.train_batch(batch)
-            best_length, best_survival = self.update_values(best_length, best_survival)
+            best_len, best_surv = self.update_values(best_len, best_surv)
 
-        print(f"Best length: {best_length}\nBest survival: {best_survival}")
+        print(f"Best length: {best_len}\nBest survival: {best_surv}")
         if self.update_game(display):
             return 1
         if self.save_path:
