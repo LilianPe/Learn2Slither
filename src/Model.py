@@ -122,7 +122,7 @@ class Model:
             while (direction == self.get_opposite(current_direction)):
                 direction_ind = random.randint(0, 3)
                 direction = directions[direction_ind]
-            return direction, direction_ind
+            return direction
         else:
             with torch.no_grad():
                 q_values = self.mlp(torch.tensor(state, dtype=torch.float32))
@@ -159,29 +159,65 @@ class Model:
         if self.visual:
             root.mainloop()
 
+    def start_episode(self, display, episode):
+        if self.printing:
+            print(f'Begin episode {episode}!\n')
+        if display:
+            display.next_step(self.sleep)
+        else:
+            time.sleep(self.sleep)
+        self.game.reset()
+        current_direction = self.game.board.get_starting_direction()
+        if self.visual:
+            display.update(self.game.board.board)
+        state = self.convert_state()
+        return current_direction, state
+
+    def update_game(self, display):
+        if self.visual and display.closed:
+            return 1
+        if display:
+            display.next_step(self.sleep)
+        else:
+            time.sleep(self.sleep)
+
+    def update_values(self, best_length, best_survival):
+        if self.game.get_best_length() > best_length:
+            best_length = self.game.get_best_length()
+        if self.game.get_best_survival() > best_survival:
+            best_survival = self.game.get_best_survival()
+        self.epsilon = max(
+            self.min_epsilon,
+            self.epsilon * self.epsilon_decay
+            )
+        return best_length, best_survival
+
+    def save_model(self):
+        try:
+            os.makedirs("model", exist_ok=True)
+            torch.save(self.mlp.state_dict(), self.save_path)
+        except Exception as e:
+            print(f"Error: Can't save the file at {self.save_path}: {e}")
+            try:
+                timestamp = time.strftime("%Y%m%d_%H%M%S")
+                name = os.path.splitext(self.save_path)[0]
+                backup = f"{name}_backup_{timestamp}.pth"
+                print(f"Trying to make a backup at {backup}")
+                os.makedirs("model", exist_ok=True)
+                torch.save(self.mlp.state_dict(), self.save_path)
+                print(f"Sucess! File saved at {backup}")
+            except Exception as e:
+                print(f"Error: Can't make a backup: {e}")
+                exit(1)
+
     def session(self, display):
         self.epsilon = 1 if self.learning else 0
         best_survival, best_length = 0, 3
         for episode in range(self.num_episodes):
-            # print(f"Epsilon: {self.epsilon}")
-            if self.printing:
-                print(f'Begin episode {episode}!\n')
-            if display:
-                display.next_step(self.sleep)
-            else:
-                time.sleep(self.sleep)
-            self.game.reset()
-            current_direction = self.game.board.get_starting_direction()
-            if self.visual:
-                display.update(self.game.board.board)
-            state = self.convert_state()
+            current_direction, state = self.start_episode(display, episode)
             for step in range(self.max_step):
-                if self.visual and display.closed:
+                if self.update_game(display):
                     return 1
-                if display:
-                    display.next_step(self.sleep)
-                else:
-                    time.sleep(self.sleep)
                 if self.printing:
                     print(f'Step {step}:\n')
                 action = self.choose_action(state, current_direction)
@@ -208,37 +244,13 @@ class Model:
                 if len(self.memory) > 64:
                     batch = random.sample(self.memory, 64)
                     self.train_batch(batch)
-            if self.game.get_best_length() > best_length:
-                best_length = self.game.get_best_length()
-            if self.game.get_best_survival() > best_survival:
-                best_survival = self.game.get_best_survival()
-            self.epsilon = max(
-                self.min_epsilon,
-                self.epsilon * self.epsilon_decay
-                )
+            best_length, best_survival = self.update_values(best_length, best_survival)
 
         print(f"Best length: {best_length}\nBest survival: {best_survival}")
-        if display:
-            display.next_step(self.sleep)
-        else:
-            time.sleep(self.sleep)
+        if self.update_game(display):
+            return 1
         if self.save_path:
-            try:
-                os.makedirs("model", exist_ok=True)
-                torch.save(self.mlp.state_dict(), self.save_path)
-            except Exception as e:
-                print(f"Error: Can't save the file at {self.save_path}: {e}")
-                try:
-                    timestamp = time.strftime("%Y%m%d_%H%M%S")
-                    name = os.path.splitext(self.save_path)[0]
-                    backup = f"{name}_backup_{timestamp}.pth"
-                    print(f"Trying to make a backup at {backup}")
-                    os.makedirs("model", exist_ok=True)
-                    torch.save(self.mlp.state_dict(), self.save_path)
-                    print(f"Sucess! File saved at {backup}")
-                except Exception as e:
-                    print(f"Error: Can't make a backup: {e}")
-                    exit(1)
+            self.save_model()
         return 0
 
     def train_batch(self, batch):
