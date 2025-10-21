@@ -19,19 +19,20 @@ The goal is to train an AI capable of surviving and growing by making optimal de
 
 ## 🕹️ How to Launch
 
-## ⚙️ Initialize the Project
+### ⚙️ Initialize the Project
 
 Clone the repository and navigate into it, then run:
 ```bash
 make
+.venv/bin/activate```
 
 ### 🧮 Training Mode
 Run several sessions and save your trained model:
 ```bash
-./snake -sessions 10 -save models/10sess.txt -visual off
+./snake -sessions 10 -save models/10sess.txt -visual off```
 
 ### 🧠 Evaluation Mode (No Learning)
 
 Load a trained model and observe the agent’s behavior:
 ```bash
-./snake -visual on -load models/100sess.txt -dontlearn -step-by-step
+./snake -visual on -load models/100sess.txt -dontlearn -step-by-step```
