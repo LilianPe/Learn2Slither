@@ -24,15 +24,20 @@ The goal is to train an AI capable of surviving and growing by making optimal de
 Clone the repository and navigate into it, then run:
 ```bash
 make
-.venv/bin/activate```
+.venv/bin/activate
+```
 
 ### 🧮 Training Mode
 Run several sessions and save your trained model:
 ```bash
-./snake -sessions 10 -save models/10sess.txt -visual off```
+python ./src/main.py -noprint -session 10 -save model/model.pth
+python ./src/main.py -noprint -session 10 -save model/model.pth -load model/model.pth
+```
 
 ### 🧠 Evaluation Mode (No Learning)
 
 Load a trained model and observe the agent’s behavior:
 ```bash
-./snake -visual on -load models/100sess.txt -dontlearn -step-by-step```
+python ./src/main.py -visual on -dontlearn -noprint -session 10 -step-by-step -load model/model.pth
+python ./src/main.py -visual on -dontlearn -noprint -session 10 -speed 3 -load model/model.pth
+```
