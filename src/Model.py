@@ -229,7 +229,7 @@ class Model:
                 next_state,
                 end
                 ))
-        return next_state, end
+        return next_state, current_direction, end
 
     def session(self, display):
         self.epsilon = 1 if self.learning else 0
@@ -241,7 +241,7 @@ class Model:
                     return 1
                 if self.printing:
                     print(f'Step {step}:\n')
-                next_state, end = self.step(display, state, current_direction)
+                next_state, current_direction, end = self.step(display, state, current_direction)
                 if (end):
                     break
                 state = next_state
