@@ -210,17 +210,27 @@ class Model:
                 print(f"Error: Can't make a backup: {e}")
                 exit(1)
 
+    def convert_action(self, action):
+        if action == Direction.UP:
+            return "Up"
+        if action == Direction.DOWN:
+            return "Down"
+        if action == Direction.LEFT:
+            return "Left"
+        if action == Direction.RIGHT:
+            return "Right"
+
     def step(self, display, state, current_direction):
         action = self.choose_action(state, current_direction)
         current_direction = action
-        if self.printing:
-            print(f'action: {action}')
         reward, end = self.game.move_snake(action)
         next_state = self.convert_state()
         if self.visual:
             display.update(self.game.board.board)
         if self.printing:
-            print(self.game.print_snake_view())
+            self.game.print_snake_view()
+        if self.printing:
+            print(self.convert_action(action))
         if self.learning:
             self.memory.append((
                 state,
@@ -239,9 +249,13 @@ class Model:
             for step in range(self.max_step):
                 if self.update_game(display):
                     return 1
-                if self.printing:
-                    print(f'Step {step}:\n')
-                next_state, current_direction, end = self.step(display, state, current_direction)
+                # if self.printing:
+                #     print(f'Step {step}:\n')
+                next_state, current_direction, end = self.step(
+                    display,
+                    state,
+                    current_direction
+                    )
                 if (end):
                     break
                 state = next_state
