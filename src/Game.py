@@ -7,15 +7,12 @@ class Game:
         """Init the snake game"""
         self.actual_direction = None
         self.board: Board = Board()
-        # ajouter best length et best survival et des getters30
 
     def move_snake(self, direction: Direction) -> int:
         if not self.board.get_snake_is_alive():
             return
         reward = self.board.move_snake(direction)
         return reward, not self.board.get_snake_is_alive()
-        # Ajouter plus tard des trigger, Green apple
-        # -> recompense, Red apple -> malus, mort -> Gros malus
 
     def print_board(self):
         """Display the actual board"""
@@ -33,10 +30,7 @@ class Game:
         head: tuple[int, int] = self.board.get_snake_head()
         for i in range(-1, 11):
             line = []
-            # print(view)
             for j in range(-1, 11):
-                # if (i < 0 or i > 9) and (j < 0 or j > 9):
-                #     continue
                 if i == head[0] or j == head[1]:
                     if i < 0 or i > 9 or j < 0 or j > 9:
                         line.append("W")
